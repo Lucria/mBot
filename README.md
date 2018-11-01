@@ -1,5 +1,6 @@
 # mBot-maze-solver
 CG1111 Project for NUS
+
 We are tasked to use an mBot to solve a maze based on external inputs such as sound, light, etc in the form of challenges
 
 We designed our own infrared sensors and calibrated them, then in order to ensure that the mBot doesn't collide with the walls while it is solving
