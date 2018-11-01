@@ -2,6 +2,7 @@
 #include <PID_v1.h>
 MeBuzzer buzzer;
 
+// Definition of Magic Numbers
 #define NOTE_E5  659
 #define NOTE_F5  698
 #define NOTE_FS5 740
