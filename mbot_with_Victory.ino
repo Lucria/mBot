@@ -46,6 +46,8 @@ uint8_t motorTwoSpeed = 225; // Right
 
 // function detects the amount of light on sensor
 // then it proceeeds to solve the challenges based on the amount of light
+// Tasked to read in two signals, 3000Hz and 300Hz
+// Determine direction based on amplitude of both signals 
 void light_challenge(){
  float voltage_lux = 0;
  // takes average amount of light
