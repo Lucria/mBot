@@ -82,6 +82,8 @@ void light_challenge(){
 
 // function detects the intensity of the sound on mic
 // it then proceeds to solve challenges based on sound intensity
+// Sound challenge require us to listen to two signals of 3000 Hz and 300 Hz
+// Determine direction base on amplitiude of both signals
 void sound_challenge() {
  float micVoltage = 0;
  // takes average reading of intensity of sound
