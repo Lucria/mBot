@@ -2,7 +2,7 @@
 #include <PID_v1.h>
 MeBuzzer buzzer;
 
-// Definition of Magic Numbers
+// This is for playing music
 #define NOTE_E5  659
 #define NOTE_F5  698
 #define NOTE_FS5 740
@@ -17,6 +17,8 @@ MeBuzzer buzzer;
 #define NOTE_DS6 1245
 #define NOTE_E6  1319
 
+// For definition of pins for sensors
+// Need Light Sensor, Mic, 2 IR, Ultrasonic Sensor
 #define LIGHT_SENSOR A6
 #define MICROPHONE A0
 #define LEFT_IR A2
