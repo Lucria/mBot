@@ -1,5 +1,6 @@
 #include "MeMCore.h"
 
+<<<<<<< .merge_file_a19976
 // Define time delay before the LED is ON
 #define LED_RGBWait 200
 
@@ -236,3 +237,4 @@ void moveForward() {
 	delay(100);
 	}*/
 }
+
