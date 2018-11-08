@@ -113,7 +113,7 @@ MeDCMotor motor2(M2);
 
 MeLightSensor lightsensorTOP(PORT_6);
 
-MePort input(PORT_3);
+MePort input(PORT_3); 
 
 MeUltrasonicSensor ultrasonicSensor(PORT_1);
 
@@ -121,11 +121,12 @@ MeRGBLed rgbled(PORT_7, 2);
 
 MeBuzzer buzzer;
 
-MeLineFollower linefollower_2(2);
+MeLineFollower linefollower_2(PORT_2);
 
 //playing victory music at the end
 // notes in the melody:
-int melody[] = { NOTE_G4,//5  
+int melody[] = { 
+        NOTE_G4,//5  
         NOTE_G4,//5
         NOTE_A4,//6
         NOTE_G4,//5
@@ -173,9 +174,9 @@ int blue = 0;
 
 //floats to hold colour arrays
 float colourArray[] = { 0,0,0 };
-float whiteArray[] = { 0,0,0 };
-float blackArray[] = { 0,0,0 };
-float greyDiff[] = { 0,0,0 };
+float whiteArray[] = { 0,0,0 }; //for calibration
+float blackArray[] = { 0,0,0 }; //for calibration
+float greyDiff[] = { 0,0,0 }; //for calibration
 
 //3 rows, 5 columns
 char colourStr[3][5] = { "R = ", "G = ", "B = " };
@@ -183,9 +184,12 @@ char colourStr[3][5] = { "R = ", "G = ", "B = " };
 // Motor speed
 int motorSpeedMax = 255;
 
-// IR sensor
+/**
+ * IR Sensor
+ * TODO: Current values are estimated values. Can be recalibrated using function during setup()
+ */
 int IR1 = 780;
-int IR2 = 555;
+int IR2 = 555; 
 
 int sum_left, sum_right;
 
@@ -195,11 +199,28 @@ void setup() {
   Serial.begin(9600);
   setup_Color_Challenge();
 }
+
 void loop() {
+  /**
+   * Code flow at the end of the day for the mBot
+   * Forward movement + IR algorithm for calibration + linefollower_2 detection
+   * if(isBlackLine == 1) {
+   *  Check loopColorChallenge;
+   *  If loopColorChallenge == black {
+   *    Check for Soundchallenge {
+   *      Undergo Soundchallenge;
+   *    } else {
+   *      play victory music
+   *    }
+   *  }
+   * } 
+   */
+
+  // Testing out the color sensor
   long testcolor = lightsensorTOP.read();
   //move(1, motorSpeedMax * SPEED_FAST, motorSpeedMax * SPEED_FAST);
   //if (isBlackLine == 1) {
-    if (lightsensorTOP.read() < 600) {
+    if (lightsensorTOP.read() < 600) { //Detected reduction in light intensity. Start Light challnege
       Serial.println("READ COLOR CHALLENGE: ");
       loopColorChallenge();
       stop();
@@ -291,6 +312,12 @@ void setBalance() {
     delay(LED_RGBWait);
   }
 
+  //Print out whiteArray for us to check and see
+  for (int i = 0; i < 3; i++) {
+    Serial.print(whiteArray[i]);
+    Serial.print(" ");
+  }
+
   //done scanning white, time for the black sample.
 
   //set black balance
@@ -321,35 +348,43 @@ void setBalance() {
     greyDiff[i] = whiteArray[i] - blackArray[i];
   }
 
+   //Print out blackArray for us to check and see
+  for (int i = 0; i < 3; i++) {
+    Serial.print(blackArray[i]);
+    Serial.print(" ");
+  }
+
   //delay another 5 seconds for getting ready colour objects
   Serial.println("Colour Sensor Is Ready.");
   delay(5000);
 }
 
-
+/**
+ * This function takes a set number of readings from the lightsensor and returns the average value
+ * 
+ * @param[in] times is the number of readings that we take from the lightsensor
+ * @return Returns the average value based on the number of readings
+ */
 int getAvgReading(int times) {
-  //find the average reading for the requested number of times of scanning LDR
   int reading;
   int total = 0;
-  //take the reading as many times as requested and add them up
   for (int i = 0; i < times; i++) {
     reading = lightsensorTOP.read();
     total = reading + total;
     delay(LED_RGBWait);
   }
-  //calculate the average and return it
   return total / times;
 }
 
-////////////////////// * MOVE METHOD * ////////////////////////////////////////////
+////////////////////////// * MOVE METHOD * ////////////////////////////////////////////
 
 void move(int direction, int speedLeft, int speedRight) {
   int leftSpeed = 0;
   int rightSpeed = 0;
-  // 1 is move forward
-  // 2 is move backward
-  // 3 is rotate1
-  // 4 is rotate2 
+  // 1 is left turn
+  // 2 is right turn
+  // 3 is forward
+  // 4 is backwards
   if (direction == 1) {
     leftSpeed = speedLeft;
     rightSpeed = speedRight;
@@ -366,6 +401,7 @@ void move(int direction, int speedLeft, int speedRight) {
     leftSpeed = speedLeft;
     rightSpeed = -speedRight;
   }
+  // What does this line mean???
   motor1.run(M1 == M1 ? -(leftSpeed) : (leftSpeed));
   motor2.run(M2 == M1 ? -(rightSpeed) : (rightSpeed));
 }
