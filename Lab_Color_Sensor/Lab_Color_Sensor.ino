@@ -21,12 +21,13 @@ float whiteArray[] = {0,0,0};
 float blackArray[] = {0,0,0};
 float greyDiff[] = {0,0,0};
 
+//3 rows, 5 columns
 char colourStr[3][5] = {"R = ", "G = ", "B = "};
 
 void setup(){
   //setup the outputs for the colour sensor
   for(int c = 0;c<=2;c++){
-    pinMode(ledArray[c],OUTPUT);  
+    pinMode(ledArray[c], OUTPUT);  
   }
   pinMode(LED,OUTPUT);   //Check Indicator -- OFF during Calibration
 
@@ -41,11 +42,15 @@ void loop(){
 //turn on one colour at a time and LDR reads 5 times
   for(int c = 0;c<=2;c++){    
     Serial.print(colourStr[c]);
+
+    //TODO: CHANGE THIS CODE TO RGD IN MOBOT
     digitalWrite(ledArray[c],HIGH); //turn ON the LED, red, green or blue, one colour at a time.
     delay(RGBWait);
-//get the average of 5 consecutive readings for the current colour and return an average 
+    
+    //get the average of 5 consecutive readings for the current colour and return an average 
     colourArray[c] = getAvgReading(5);
-//the average reading returned minus the lowest value divided by the maximum possible range, multiplied by 255 will give a value between 0-255, representing the value for the current reflectivity (i.e. the colour LDR is exposed to)
+    
+    //the average reading returned minus the lowest value divided by the maximum possible range, multiplied by 255 will give a value between 0-255, representing the value for the current reflectivity (i.e. the colour LDR is exposed to)
     colourArray[c] = (colourArray[c] - blackArray[c])/(greyDiff[c])*255;
     digitalWrite(ledArray[c],LOW);  //turn off the current LED colour
     delay(RGBWait);
@@ -68,18 +73,20 @@ void setBalance(){
      digitalWrite(ledArray[i],LOW);
      delay(RGBWait);
   }
-//done scanning white, time for the black sample.
-//set black balance
+
+  //done scanning white, time for the black sample.
+  //set black balance
   Serial.println("Put Black Sample For Calibration ...");
   delay(5000);     //delay for five seconds for getting sample ready 
-//go through one colour at a time, set the minimum reading for red, green and blue to the black array
+  
+  //go through one colour at a time, set the minimum reading for red, green and blue to the black array
   for(int i = 0;i<=2;i++){
      digitalWrite(ledArray[i],HIGH);
      delay(RGBWait);
      blackArray[i] = getAvgReading(5);
      digitalWrite(ledArray[i],LOW);
      delay(RGBWait);
-//the differnce between the maximum and the minimum gives the range
+  //the differnce between the maximum and the minimum gives the range
      greyDiff[i] = whiteArray[i] - blackArray[i];
   }
 
