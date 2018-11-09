@@ -92,10 +92,10 @@
 #define NOTE_DS8 4978
 
 // Define time delay before the LED is ON
-#define LED_RGBWait 200
+#define LED_RGBWait 100
 
 // Define time delay before the next RGB colour turns ON to allow LDR to stabilize
-#define RGBWait 200 //in milliseconds 
+#define RGBWait 100 //in milliseconds 
 
 // Define time delay before taking another LDR reading
 #define LDRWait 10 //in milliseconds 
@@ -107,6 +107,14 @@
 // Motor speed constant
 #define SPEED_SLOW 0.5
 #define SPEED_FAST 0.8
+
+//number of times scanned
+#define TIMES 5
+#define TIMES_CALIBRATION 20
+
+//time for turn left or right
+#define TIME_TURN_MAX 265
+#define SPEED_MAX 255
 
 MeDCMotor motor1(M1);
 MeDCMotor motor2(M2);
@@ -123,48 +131,13 @@ MeBuzzer buzzer;
 
 MeLineFollower linefollower_2(2);
 
-//playing victory music at the end
+// playing victory music at the end
 // notes in the melody:
-int melody[] = { NOTE_G4,//5  
-        NOTE_G4,//5
-        NOTE_A4,//6
-        NOTE_G4,//5
-        NOTE_C5,//1.
-        NOTE_B4,//7
-        0,
-        NOTE_G4,//5
-        NOTE_G4,//5
-        NOTE_A4,//6
-        NOTE_G4,//5
-        NOTE_D5,//2.
-        NOTE_C5,//1.
-        0,
-        NOTE_G4,//5
-        NOTE_G4,//5
-        NOTE_G5,//5.
-        NOTE_E5,//3.
-        NOTE_C5,//1.
-        NOTE_B4,//7
-        NOTE_A4,//6
-        0,
-        NOTE_F5,//4.
-        NOTE_F5,//4.
-        NOTE_E5,//3.
-        NOTE_C5,//1.
-        NOTE_D5,//2.
-        NOTE_C5,//1.
-        0,
-};
-
-int noteDurations[] = { 8,8,4,4,4,4,
-            4,
-            8,8,4,4,4,4,
-            4,
-            8,8,4,4,4,4,2,
-            8,
-            8,8,4,4,4,2,
-            4,
-};
+int melody[] = { NOTE_G4, NOTE_G4, NOTE_A4, NOTE_G4, NOTE_C5, NOTE_B4,
+         0, NOTE_G4, NOTE_G4, NOTE_A4, NOTE_G4, NOTE_D5, NOTE_C5,
+         0, NOTE_G4, NOTE_G4, NOTE_G5, NOTE_E5, NOTE_C5, NOTE_B4, NOTE_A4,
+         0, NOTE_F5, NOTE_F5, NOTE_E5, NOTE_C5, NOTE_D5, NOTE_C5, 0};
+int noteDurations[] = { 8,8,4,4,4,4,4,8,8,4,4,4,4,4,8,8,4,4,4,4,2,8,8,8,4,4,4,2,4};
 
 //placeholders for colour detected
 int red = 0;
@@ -180,41 +153,56 @@ float greyDiff[] = { 0,0,0 };
 //3 rows, 5 columns
 char colourStr[3][5] = { "R = ", "G = ", "B = " };
 
-// Motor speed
-int motorSpeedMax = 255;
-
 // IR sensor
 int IR1 = 780;
 int IR2 = 555;
 
+int isBlackLineTrack = 0;
+
+int checked = 0;
+
 int sum_left, sum_right;
 
+int speedRealLeft = SPEED_MAX;
+int sppedRealRight = SPEED_MAX;
 
 ////////////////////// * MAIN METHOD * ////////////////////////////////////////////
 void setup() {
   Serial.begin(9600);
-  setup_Color_Challenge();
+  //setup_Color_Challenge();
 }
 void loop() {
   long testcolor = lightsensorTOP.read();
-  //move(1, motorSpeedMax * SPEED_FAST, motorSpeedMax * SPEED_FAST);
-  //if (isBlackLine == 1) {
+  delay(5000);
+  if (checked == 0) {
+    turnLeft(speedRealLeft, speedRealRight);
+    checked++;
+  }
+  if (isBlackLine() == 1) {
+    Serial.println("Black line: STOP");
+    isBlackLineTrack = 1;
+    stop();
     if (lightsensorTOP.read() < 600) {
       Serial.println("READ COLOR CHALLENGE: ");
       loopColorChallenge();
-      stop();
     }
-  //}
+  }
+  else if (isBlackLineTrack == 0) {
+
+  }
+  isBlackLineTrack = 0;
   Serial.println("--------The light sensor is: ");
   Serial.println(lightsensorTOP.read());
 
   // Always read the IR sensor
   IR1 = analogRead(LEFT_IR);
   IR2 = analogRead(RIGHT_IR);
+
   Serial.print("=================The left IR sensor is: ");
   Serial.println(IR1);
   Serial.print("=================The right IR sensor is: ");
   Serial.println(IR2);
+  delay(200);
 }
 
 
@@ -223,7 +211,7 @@ void loop() {
 
 void setup_Color_Challenge() {
   //setup the outputs for the colour sensor
-  turnOffLed();
+  turnOffLed(0);
 
   setBalance();  //calibration
 }
@@ -234,18 +222,10 @@ void loopColorChallenge() {
     Serial.print(colourStr[c]);
 
     // Turn on LED Red, Green, Blue at a time
-    if (c == 0) {
-      turnOnRedLed();
-    }
-    else if (c == 1) {
-      turnOnGreenLed();
-    }
-    else {
-      turnOnBlueLed();
-    }
+    turnOnOffRGBLed(c, 0);
 
     // get the average of 5 consecutive readings for the current colour and return an average 
-    colourArray[c] = getAvgReading(5);
+    colourArray[c] = getAvgReading(TIMES);
 
     // the average reading returned minus the lowest value divided by the maximum possible range,
     // multiplied by 255 will give a value between 0-255, representing the value for the current reflectivity 
@@ -253,7 +233,7 @@ void loopColorChallenge() {
     colourArray[c] = (colourArray[c] - blackArray[c]) / (greyDiff[c]) * 255;
 
     //turn off the current LED colour
-    turnOffLed();
+    turnOffLed(0);
 
     delay(LED_RGBWait);
 
@@ -265,28 +245,22 @@ void setBalance() {
   //set white balance
   Serial.println("Put White Sample For Calibration ...");
 
+  buzzer.tone(8, NOTE_G4, 250);
+
   delay(5000);  //delay for five seconds for getting sample ready
 
-  turnOffLed(); //Check Indicator OFF during Calibration
+  turnOffLed(0); //Check Indicator OFF during Calibration
 
   //scan the white sample.
   //go through one colour at a time, set the maximum reading for each colour -- red, green and blue to the white array
   for (int i = 0; i <= 2; i++) {
     // Turn on LED Red, Green, Blue at a time
-    if (i == 0) {
-      turnOnRedLed();
-    }
-    else if (i == 1) {
-      turnOnGreenLed();
-    }
-    else {
-      turnOnBlueLed();
-    }
+    turnOnOffRGBLed(i, 0);
 
-    whiteArray[i] = getAvgReading(5);         //scan 5 times and return the average, 
+    whiteArray[i] = getAvgReading(TIMES);         //scan 5 times and return the average, 
 
     //turn off the current LED colour
-    turnOffLed();
+    turnOffLed(0);
 
     delay(LED_RGBWait);
   }
@@ -296,25 +270,19 @@ void setBalance() {
   //set black balance
   Serial.println("Put Black Sample For Calibration ...");
 
+  buzzer.tone(8, NOTE_C5, 250);
+
   delay(5000); //delay for five seconds for getting sample ready 
 
   //go through one colour at a time, set the minimum reading for red, green and blue to the black array
   for (int i = 0; i <= 2; i++) {
     // Turn on LED Red, Green, Blue at a time
-    if (i == 0) {
-      turnOnRedLed();
-    }
-    else if (i == 1) {
-      turnOnGreenLed();
-    }
-    else {
-      turnOnBlueLed();
-    }
+    turnOnOffRGBLed(i, 0);
 
-    blackArray[i] = getAvgReading(5);
+    blackArray[i] = getAvgReading(TIMES);
 
     //turn off the current LED colour
-    turnOffLed();
+    turnOffLed(0);
 
     delay(LED_RGBWait);
     //the differnce between the maximum and the minimum gives the range
@@ -324,6 +292,8 @@ void setBalance() {
   //delay another 5 seconds for getting ready colour objects
   Serial.println("Colour Sensor Is Ready.");
   delay(5000);
+
+  buzzer.tone(8, NOTE_E5, 250);
 }
 
 
@@ -341,6 +311,9 @@ int getAvgReading(int times) {
   return total / times;
 }
 
+////////////////////// * CALIBRATE MOVE IR METHOD * ////////////////////////////////////////////
+
+
 ////////////////////// * MOVE METHOD * ////////////////////////////////////////////
 
 void move(int direction, int speedLeft, int speedRight) {
@@ -348,8 +321,8 @@ void move(int direction, int speedLeft, int speedRight) {
   int rightSpeed = 0;
   // 1 is move forward
   // 2 is move backward
-  // 3 is rotate1
-  // 4 is rotate2 
+  // 3 is turn left
+  // 4 is turn right
   if (direction == 1) {
     leftSpeed = speedLeft;
     rightSpeed = speedRight;
@@ -370,6 +343,23 @@ void move(int direction, int speedLeft, int speedRight) {
   motor2.run(M2 == M1 ? -(rightSpeed) : (rightSpeed));
 }
 
+void turnLeft(int speedLeft, int speedRight) {
+  move(3, speedLeft, speedRight);
+  delay((TIME_TURN_MAX * SPEED_MAX / (speedLeft / 2 + speedRight / 2));
+}
+void turnRight(int speedLeft, int speedRight) {
+  move(4, speedLeft, speedRight);
+  delay((TIME_TURN_MAX * SPEED_MAX / (speedLeft / 2 + speedRight / 2));
+}
+void turn180(int speedLeft, int speedRight) {
+  for (int i = 0; i < 2; i++) {
+    turnLeft(speedLeft, speedRight);
+  }
+}
+void turnU(int speedLeft, int speedRight) {
+  turnLeft(speedLeft, speedRight);
+  
+}
 void stop() {
   motor1.run(0);
   motor2.run(0);
@@ -378,9 +368,10 @@ void stop() {
 
 ////////////////////// * READ BLACK LINE * ////////////////////////////////////////////
 int isBlackLine() {
-  if (linefollower_2.readSensors() == S1_IN_S2_IN
+  if ((linefollower_2.readSensors() == S1_IN_S2_IN)
     || linefollower_2.readSensors() == S1_IN_S2_OUT
     || linefollower_2.readSensors() == S1_OUT_S2_IN) {
+    stop();
     return 1;
   }
   return 0;
@@ -389,35 +380,44 @@ int isBlackLine() {
 
 ////////////////////// * TURN ON OFF RGB LED * ////////////////////////////////////////////
 
-void turnOnOffRGBLed() {
-  turnOnRedLed();
-  turnOffLed();
-  turnOnGreenLed();
-  turnOffLed();
-  turnOnBlueLed();
-  turnOffLed();
+void turnOnOffRGBLed(int i, int light) {
+  if (i == 0) {
+    turnOnRedLed(light);
+  }
+  else if (i == 1) {
+    turnOnGreenLed(light);
+  }
+  else {
+    turnOnBlueLed(light);
+  }
 }
 
-void turnOnRedLed() {
-  rgbled.setColor(0, 255, 0, 0);
+void turnOnRedLed(int light) {
+  rgbled.setColor(light, 255, 0, 0);
   rgbled.show();
   delay(LED_RGBWait);
 }
 
-void turnOnGreenLed() {
-  rgbled.setColor(0, 0, 255, 0);
+void turnOnGreenLed(int light) {
+  rgbled.setColor(light, 0, 255, 0);
   rgbled.show();
   delay(LED_RGBWait);
 }
 
-void turnOnBlueLed() {
-  rgbled.setColor(0, 0, 0, 255);
+void turnOnBlueLed(int light) {
+  rgbled.setColor(light, 0, 0, 255);
   rgbled.show();
   delay(LED_RGBWait);
 }
 
-void turnOffLed() {
-  rgbled.setColor(0, 0, 0, 0);
+void turnOnWhite(int light) {
+  rgbled.setColor(light, 255, 255, 255);
+  rgbled.show();
+  delay(LED_RGBWait);
+}
+
+void turnOffLed(int light) {
+  rgbled.setColor(light, 0, 0, 0);
   rgbled.show();
   delay(LED_RGBWait);
 
@@ -431,6 +431,7 @@ void play() {
     // divided by the note type.
     //e.g. quarter note = 1000 / 4, eighth note = 1000/8, etc.
     int noteDuration = 1000 / noteDurations[thisNote];
+
     buzzer.tone(8, melody[thisNote], noteDuration);
 
     // to distinguish the notes, set a minimum time between them.
