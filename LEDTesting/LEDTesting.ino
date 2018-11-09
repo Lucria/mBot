@@ -110,7 +110,7 @@
 #define SPEED_FAST 0.8
 
 //number of times scanned
-#define TIMES 5
+#define TIMES 20
 #define TIMES_CALIBRATION 20
 
 //time for turn left or right
@@ -131,16 +131,16 @@ int noteDurations[] = { 8,8,4,4,4,4,4,8,8,4,4,4,4,4,8,8,4,4,4,4,2,8,8,8,4,4,4,2,
 
 //floats to hold colour arrays
 float colourArray[] = { 0,0,0 };
-float whiteArray[] = { 947,779,895 }; //947.00, 779.00, 895.00
-float blackArray[] = { 276.00, 217.00, 249.00}; //276.00, 217.00, 249.00
-float greyDiff[] = {671.00, 562.00, 656.00}; //671.00, 562.00, 656.00
+float whiteArray[] = {908.00, 733.00, 851.00}; //908.00, 733.00, 851.00
+float blackArray[] = {271.00, 210.00, 247.00}; //271.00, 210.00, 247.00
+float greyDiff[] = {629.00, 523.00, 604.00}; //629.00, 523.00, 604.00
 
 /**
- * Green: 54, 99, 58
- * Red: 192, 78, 66
- * Blue: 31, 73, 98
- * Black: -? -? -?
- * White: 228, 224, 225
+ * Green: 75, 118, 71
+ * Red: 167, 67, 58
+ * Blue: 64, 115, 136
+ * Black: 2 2 2
+ * White: 244, 243, 235
  * Orange: 101, 89, 71
  */
 
@@ -180,8 +180,8 @@ MeBuzzer buzzer;
 MeLineFollower linefollower_2(PORT_2);
 
 // initialize PID objects
-PID leftPID(&InputLeft, &OutputLeft, &SetpointLeft, 0.7, 0.1, 0, DIRECT);
-PID rightPID(&InputRight, &OutputRight, &SetpointRight, 0.7, 0.1, 0, DIRECT);
+PID leftPID(&InputLeft, &OutputLeft, &SetpointLeft, 0.8, 0.1, 0, DIRECT);
+PID rightPID(&InputRight, &OutputRight, &SetpointRight, 0.8, 0.1, 0, DIRECT);
 
 
 ////////////////////// * MAIN METHOD * ////////////////////////////////////////////
@@ -210,6 +210,7 @@ void loop() {
   Serial.println(speedRealLeft);
   Serial.println(speedRealRight);
   move(1, speedRealLeft, speedRealRight);
+  
   
   
   /*InputRight = analogRead(RIGHT_IR);
@@ -276,6 +277,15 @@ void loopColorChallenge() {
 
     delay(LED_RGBWait);
 
+/**
+ * Green: 75, 118, 71 (Right turn)
+ * Red: 167, 67, 58
+ * Blue: 64, 115, 136
+ * Black: 2 2 2
+ * White: 244, 243, 235
+ * Orange: 101, 89, 71
+ */
+
     /**
      * Green: 54, 99, 58 (Right turn)
      * Red: 192, 78, 66 (Left turn)
@@ -284,10 +294,6 @@ void loopColorChallenge() {
      * White: 228, 224, 225 (Uturn)
      * Orange: 101, 89, 71 (Two successive left turns in two grids)
      */
-    if ((colourArray[0] > 150) && (colourArray[1] < 60) && (colourArray[2] < 60)) {
-      turnLeft(100,100);
-    }
-
     Serial.println(int(colourArray[c])); //show the value for the current colour LED, which corresponds to either the R, G or B of the RGB code
   }
 }
@@ -435,13 +441,19 @@ void goOneGrid(int speedLeft, int speedRight) {
 }
 void turnULeft(int speedLeft, int speedRight) {
   turnLeft(speedLeft, speedRight);
+  delay(100);
   goOneGrid(speedLeft, speedRight);
+  delay(100);
   turnLeft(speedLeft, speedRight);
+  delay(100);
 }
 void turnURight(int speedLeft, int speedRight) {
   turnRight(speedLeft, speedRight);
+  delay(100);
   goOneGrid(speedLeft, speedRight);
+  delay(100);
   turnRight(speedLeft, speedRight);
+  delay(100);
 }
 void stop() {
   motor1.run(0);
@@ -524,4 +536,5 @@ void play() {
     buzzer.noTone(8);
   }
 }
+
 
