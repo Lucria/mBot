@@ -1,4 +1,5 @@
 #include "MeMCore.h"
+#include <PID_v1.h>
 
 // define notes for playing music at the end
 #define NOTE_B0  31
@@ -113,23 +114,12 @@
 #define TIMES_CALIBRATION 20
 
 //time for turn left or right
-#define TIME_TURN_MAX 265
-#define SPEED_MAX 255
+#define TIME_TURN_MAX 265.0
+#define SPEED_MAX 255.0
+#define DISTANCE_TWO_WHEELS 12.9
+#define DISTANCE_ONE_GRID 27.0
+#define TIME_ONE_GRID (DISTANCE_ONE_GRID/(DISTANCE_TWO_WHEELS * 3.1416/4)*TIME_TURN_MAX)
 
-MeDCMotor motor1(M1);
-MeDCMotor motor2(M2);
-
-MeLightSensor lightsensorTOP(PORT_6);
-
-MePort input(PORT_3);
-
-MeUltrasonicSensor ultrasonicSensor(PORT_1);
-
-MeRGBLed rgbled(PORT_7, 2);
-
-MeBuzzer buzzer;
-
-MeLineFollower linefollower_2(2);
 
 // playing victory music at the end
 // notes in the melody:
@@ -164,12 +154,39 @@ int checked = 0;
 int sum_left, sum_right;
 
 int speedRealLeft = SPEED_MAX;
-int sppedRealRight = SPEED_MAX;
+int speedRealRight = SPEED_MAX;
+
+// takes care of the PID
+double SetpointLeft, InputLeft, OutputLeft;
+double SetpointRight, InputRight, OutputRight;
+
+////////////////////// * INTIALISE METHOD * ////////////////////////////////////////////
+
+MeDCMotor motor1(M1);
+MeDCMotor motor2(M2);
+
+MeLightSensor lightsensorTOP(PORT_6);
+
+MePort input(PORT_3);
+
+MeUltrasonicSensor ultrasonicSensor(PORT_1);
+
+MeRGBLed rgbled(PORT_7, 2);
+
+MeBuzzer buzzer;
+
+MeLineFollower linefollower_2(2);
+
+// initialize PID objects
+PID leftPID(&InputLeft, &OutputLeft, &SetpointLeft, 0.5, 0.2, 0, DIRECT);
+PID rightPID(&InputRight, &OutputRight, &SetpointRight, 0.5, 0.2, 0, DIRECT);
 
 ////////////////////// * MAIN METHOD * ////////////////////////////////////////////
+
 void setup() {
   Serial.begin(9600);
   //setup_Color_Challenge();
+  setupIRCalibrate();
 }
 void loop() {
   long testcolor = lightsensorTOP.read();
@@ -188,7 +205,12 @@ void loop() {
     }
   }
   else if (isBlackLineTrack == 0) {
-
+    InputRight = analogRead(RIGHT_IR);
+    InputLeft = analogRead(LEFT_IR);
+    leftPID.Compute();
+    rightPID.Compute();
+    speedRealRight = (OutputRight / 2.2) + 150;
+    speedRealLeft = (OutputLeft / 2.2) + 150;
   }
   isBlackLineTrack = 0;
   Serial.println("--------The light sensor is: ");
@@ -197,7 +219,6 @@ void loop() {
   // Always read the IR sensor
   IR1 = analogRead(LEFT_IR);
   IR2 = analogRead(RIGHT_IR);
-
   Serial.print("=================The left IR sensor is: ");
   Serial.println(IR1);
   Serial.print("=================The right IR sensor is: ");
@@ -212,7 +233,6 @@ void loop() {
 void setup_Color_Challenge() {
   //setup the outputs for the colour sensor
   turnOffLed(0);
-
   setBalance();  //calibration
 }
 
@@ -313,6 +333,20 @@ int getAvgReading(int times) {
 
 ////////////////////// * CALIBRATE MOVE IR METHOD * ////////////////////////////////////////////
 
+void setupIRCalibrate() {
+  int i;
+  // Calibrates the initial left and right distance of the mBot
+  for (i = 0; i < 10; i++) {
+    InputRight = analogRead(RIGHT_IR);
+    InputLeft = analogRead(LEFT_IR);
+    SetpointLeft += InputLeft/10;
+    SetpointRight += InputRight/10;
+    delay(100);
+  }
+  // turn PID on
+  leftPID.SetMode(AUTOMATIC);
+  rightPID.SetMode(AUTOMATIC);
+}
 
 ////////////////////// * MOVE METHOD * ////////////////////////////////////////////
 
@@ -356,9 +390,19 @@ void turn180(int speedLeft, int speedRight) {
     turnLeft(speedLeft, speedRight);
   }
 }
-void turnU(int speedLeft, int speedRight) {
+void goOneGrid(int speedLeft, int speedRight) {
+  move(1, speedLeft, speedRight);
+  delay(TIME_ONE_GRID * SPEED_MAX / (speedLeft / 2 + speedRight / 2));
+}
+void turnULeft(int speedLeft, int speedRight) {
   turnLeft(speedLeft, speedRight);
-  
+  goOneGrid(speedLeft, speedRight);
+  turnLeft(speedLeft, speedRight);
+}
+void turnURight(int speedLeft, int speedRight) {
+  turnRight(speedLeft, speedRight);
+  goOneGrid(speedLeft, speedRight);
+  turnRight(speedLeft, speedRight);
 }
 void stop() {
   motor1.run(0);
@@ -422,7 +466,6 @@ void turnOffLed(int light) {
   delay(LED_RGBWait);
 
 }
-
 
 ////////////////////// * PLAY VICTORY MUSIC * ////////////////////////////////////////////
 void play() {
