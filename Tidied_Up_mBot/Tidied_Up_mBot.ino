@@ -93,6 +93,19 @@
 #define NOTE_DS8 4978
 
 /**
+ * Ultrasonic Sensor definitions
+ * This is used to aid the colour sensor challenge when we are required to do two
+ * successive left turns (orange) or two successive right turns (blue) in two
+ * grids. After turning the first time, mBot will rely on the ultrasonic sensor
+ * and detects if the wall is within a certain distance before turning again
+ */
+#define ULTRADISTANCE 12
+
+MeUltrasonicSensor ultrasonicSensor(PORT_1);
+
+
+
+/**
  * Functions for Music
  * Store musical notes in an array based on defined numbers found online
  * Duration that each note is played is also stored in an array
@@ -120,18 +133,6 @@ void play() {
   }
 }
 
-
-
-/**
- * Ultrasonic Sensor definitions
- * This is used to aid the colour sensor challenge when we are required to do two
- * successive left turns (orange) or two successive right turns (blue) in two
- * grids. After turning the first time, mBot will rely on the ultrasonic sensor
- * and detects if the wall is within a certain distance before turning again
- */
-#define ULTRADISTANCE 12
-
-MeUltrasonicSensor ultrasonicSensor(PORT_1);
 
 
 /**
