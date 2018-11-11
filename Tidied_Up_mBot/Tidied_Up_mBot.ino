@@ -96,6 +96,7 @@
  * Functions for Music
  * Store musical notes in an array based on defined numbers found online
  * Duration that each note is played is also stored in an array
+ * Chosen song: Thug Life, Snoop Dog LOL
  */
  
 MeBuzzer buzzer;
@@ -122,7 +123,7 @@ void play() {
 
 
 /**
- * Ultrasonic Sensor functions
+ * Ultrasonic Sensor definitions
  * This is used to aid the colour sensor challenge when we are required to do two
  * successive left turns (orange) or two successive right turns (blue) in two
  * grids. After turning the first time, mBot will rely on the ultrasonic sensor
@@ -131,11 +132,6 @@ void play() {
 #define ULTRADISTANCE 12
 
 MeUltrasonicSensor ultrasonicSensor(PORT_1);
-
-int ultraSense() {
-  int Distance = ultrasonicSensor.distanceCm();
-  return Distance;
-}
 
 
 /**
@@ -212,19 +208,23 @@ void goOneGrid(int speedLeft, int speedRight) {
 void turnULeft(int speedLeft, int speedRight) {
   turnLeft(speedLeft, speedRight);
   delay(100);
-  goOneGrid(speedLeft, speedRight);
-  delay(100);
+  while (ultrasonicSensor.distanceCm() > ULTRADISTANCE) {
+    move(1, speedLeft, speedRight);
+  }
   turnLeft(speedLeft, speedRight);
   delay(100);
+  stop();
 }
 
 void turnURight(int speedLeft, int speedRight) {
   turnRight(speedLeft, speedRight);
   delay(100);
-  goOneGrid(speedLeft, speedRight);
-  delay(100);
+  while (ultrasonicSensor.distanceCm() > ULTRADISTANCE) {
+    move(1, speedLeft, speedRight);
+  }
   turnRight(speedLeft, speedRight);
   delay(100);
+  stop();
 }
 
 void stop() {
@@ -486,6 +486,7 @@ void loop() {
     //loopColorChallenge();
     //soundChallenge();
     //ultraSense();
+    turnURight(speedLeft, speedRight);
     play();
     delay(100);
   }
