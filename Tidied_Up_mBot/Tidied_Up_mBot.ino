@@ -133,7 +133,8 @@ void play() {
 MeUltrasonicSensor ultrasonicSensor(PORT_1);
 
 void ultraSense() {
-
+  int Distance = ultrasonicSensor.distanceCm();
+  Serial.println(Distance);
 }
 
 

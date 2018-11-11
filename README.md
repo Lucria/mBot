@@ -1,10 +1,14 @@
 # mBot-maze-solver
-CG1111 Project for NUS
+CG1111 Project for NUS Sem 1 18/19
 
-We are tasked to use an mBot to solve a maze based on external inputs such as sound, light, etc in the form of challenges
+Done by Team Technical Difficulties :>
 
-We designed our own infrared sensors and calibrated them, then in order to ensure that the mBot doesn't collide with the walls while it is solving
-the maze, we used PID (Proportional, Integral, Derivative) Controller available in the Arduino Library. The input for the PID came from the IR sensors
-that allowed the mBot to 'autocorrect' itself when it got too close with the walls.
+Task: Assemble an mBot and required sensors to solve a maze based on challenges that have to be solved using sensors.
 
-At the end of the maze, it played a victory tune.
+We designed our own IR sensors utilizing components in the lab. Utilizing the PID (Proportional, Integral, Derivative) library from Arduino, we calibrated the sensors such that they will change the turning speed of the wheels in order to avoid collision with the walls of the maze.
+
+We also designed our own microphone using components from the lab such as variable resistors, diodes and capacitors to design a bandpass filter for 300Hz, a high pass filter for 3000Hz frequencies and an envelope detector to check its amplitude. This is for solving the sound challenge whereby we have to decipher which frequency is louder based on their amplitude.
+
+We also calibrated the onboard Light Sensor and RGB lights in order to solve the colour challenge, whereby our mBot will read the RGB values of the coloured paper above it and decide where to go base on the RGB values. By measuing the reflected light intensity after shining Red, Green and Blue light, we are able to roughly measure the RGB values of each colour.
+
+Upon reaching the end of the maze, we utilized the onboard buzzer to play a small victory tune.
