@@ -1,4 +1,5 @@
 {
-    "board": "arduino:avr:uno",
-    "port": "COM14"
+    "board": "esp8266:esp8266:d1",
+    "port": "COM11",
+    "configuration": "CpuFrequency=80,VTable=flash,FlashSize=4M1M,LwIPVariant=v2mss536,Debug=Disabled,DebugLevel=None____,FlashErase=none,UploadSpeed=921600"
 }

@@ -119,6 +119,24 @@ void play() {
   }
 }
 
+
+
+/**
+ * Ultrasonic Sensor functions
+ * This is used to aid the colour sensor challenge when we are required to do two
+ * successive left turns (orange) or two successive right turns (blue) in two
+ * grids. After turning the first time, mBot will rely on the ultrasonic sensor
+ * and detects if the wall is within a certain distance before turning again
+ */
+#define ULTRADISTANCE 12
+
+MeUltrasonicSensor ultrasonicSensor(PORT_1);
+
+void ultraSense() {
+
+}
+
+
 /**
  * Motor functions
  * Responsible for changing the MeDCMotor values
@@ -213,9 +231,15 @@ void stop() {
   motor2.run(0);
 }
 
+
+
 /**
  * Black Line Sensing
+ * Sensor is attached to PORT_2 of the mBot expansion
+ * Sensors if there is a black line
+ * Black line is an indication of a challenge, sound or colour
  */
+
 MeLineFollower linefollower_2(PORT_2);
 
 int isBlackLine() {
@@ -227,6 +251,8 @@ int isBlackLine() {
   }
   return 0;
 }
+
+
 
 /**
  * For Color Sensing Challenge
@@ -357,6 +383,7 @@ int getAvgReading(int times) {
   return total / times;
 }
 
+
 /**
  * For IR Sensors
  * Utilized for movement correction so that robot can stay in a straight line.
@@ -392,6 +419,51 @@ void setupIRCalibrate() {
 }
 
 
+/**
+ * For Sound Challenge
+ * Required to read in sound frequencies of 3000Hz and 300Hz from the mic
+ * S2 is 3000Hz
+ * S1 is 300Hz
+ * Read Voltage values from both analogPins and compare their Voltage
+ * If 300Hz louder, Left turn
+ * If 3000Hz louder, Right turn
+ * If both the same amplitude, U-turn same grid
+ */
+
+#define Reader3000Hz A1
+#define Reader300Hz A0
+
+int volt3000, volt300;
+
+void soundChallenge() {
+  float reading_low = 0;
+  float reading_high = 0;
+  for (long i = 0; i < 20; i ++) {
+    reading_low += analogRead(Reader300Hz);
+    reading_high += analogRead(Reader3000Hz);
+    delay(50);
+  }
+  float avghigh = reading_high/20;
+  float avglow = reading_low/20;
+  float ratio = avghigh/(avglow);
+  Serial.print("300Hz:");
+  Serial.print((avglow)/1023*5000);
+  Serial.print("       3000Hz:");
+  Serial.print(avghigh/1023*5000);
+  Serial.print("       ");
+  Serial.print(ratio);
+  Serial.println("");
+  if (ratio <= 0.3) {
+    turnLeft(speedLeft, speedRight);
+  } else if (ratio > 0.3) && (ratio <= 2) {
+    turnULeft(speedLeft, speedRight);
+  } else {
+    turnRight(speedLeft, speedRight);
+  }
+  }
+  delay(100);
+}
+
 
 /**
  * Main Methods
@@ -406,16 +478,16 @@ void setup() {
 void loop() {
   if (isBlackLine() == 1) {
     Serial.println("BLACK LINE!!!");
-    loopColorChallenge();
-    // Test Sound
-    delay(200);
+    //loopColorChallenge();
+    soundChallenge();
+    delay(100);
   }
   inputLeft = analogRead(LEFT_IR);
   inputRight = analogRead(RIGHT_IR);
   leftPID.Compute();
   rightPID.Compute();
-  Serial.println(outputLeft);
-  Serial.println(outputRight);
+  //Serial.println(outputLeft);
+  //Serial.println(outputRight);
   speedLeft = (outputLeft / 2.2) + 180;
   speedRight = (outputRight / 2.2) + 180;
   move(1, speedLeft, speedRight);
