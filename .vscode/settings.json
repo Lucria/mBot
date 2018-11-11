@@ -3,5 +3,6 @@
         "iosfwd": "cpp",
         "type_traits": "cpp",
         "xutility": "cpp"
-    }
+    },
+    "C_Cpp.intelliSenseEngineFallback": "Enabled"
 }
