@@ -94,27 +94,27 @@
 
 /**
  * Functions for Music
+ * Store musical notes in an array based on defined numbers found online
+ * Duration that each note is played is also stored in an array
  */
  
 MeBuzzer buzzer;
 
-int melody[] = {NOTE_G5, NOTE_D4, NOTE_A4, NOTE_G4, NOTE_A4, NOTE_G4};
-int noteDurations[] = {4, 4, 4, 4, 4, 4};
+int melody[] = {NOTE_DS3, NOTE_AS3, NOTE_AS3, NOTE_GS3, NOTE_AS3, NOTE_GS3, NOTE_FS3, NOTE_GS3, NOTE_GS3, NOTE_FS3, NOTE_DS3, NOTE_FS3};
+int noteDurations[] = {4, 4, 8, 8, 4, 8, 8, 4, 8, 8, 8, 8};
 
 void play() {
-  for (int thisNote = 0; thisNote < 29; thisNote++) {
-    // to calculate the note duration, take one second 
-    // divided by the note type.
+  for (int thisNote = 0; thisNote < 12; thisNote++) {
+    // Note duration = one second (1000) / note type
     //e.g. quarter note = 1000 / 4, eighth note = 1000/8, etc.
     int noteDuration = 1000 / noteDurations[thisNote];
 
     buzzer.tone(8, melody[thisNote], noteDuration);
 
-    // to distinguish the notes, set a minimum time between them.
-    // the note's duration + 30% seems to work well:
-    int pauseBetweenNotes = noteDuration * 1.00;
+    // Note delay between each note to distinguish each note
+    int pauseBetweenNotes = noteDuration * 1.10;
     delay(pauseBetweenNotes);
-    // stop the tone playing:
+    // End of music
     buzzer.noTone(8);
   }
 }
@@ -132,9 +132,9 @@ void play() {
 
 MeUltrasonicSensor ultrasonicSensor(PORT_1);
 
-void ultraSense() {
+int ultraSense() {
   int Distance = ultrasonicSensor.distanceCm();
-  Serial.println(Distance);
+  return Distance;
 }
 
 
@@ -366,6 +366,9 @@ void colorChecker() {
     turn180(speedLeft, speedRight);
   }
   // Optional Orange
+  else if ((colourArray[0] < 150) && (colourArray[1] < 105) && (colourArray[2] <90)) {
+    turnULeft(speedLeft, speedRight);
+  }
   // Black
   else if ((colourArray[0] < 30) && (colourArray[1] < 30) && (colourArray[2] < 30)) {
     //CHECK FOR SOUND CHALLENGE
@@ -432,7 +435,7 @@ void setupIRCalibrate() {
  */
 
 #define Reader3000Hz A1
-#define Reader300Hz A0
+#define Reader300Hz A0  
 
 int volt3000, volt300;
 
@@ -454,13 +457,14 @@ void soundChallenge() {
   Serial.print("       ");
   Serial.print(ratio);
   Serial.println("");
-  if (ratio <= 0.3) {
+  if ((ratio <= 0.3) && (ratio > 0)) {
     turnLeft(speedLeft, speedRight);
-  } else if (ratio > 0.3) && (ratio <= 2) {
+  } else if ((ratio > 0.3) && (ratio <= 2)) {
     turnULeft(speedLeft, speedRight);
-  } else {
+  } else if (ratio > 2) {
     turnRight(speedLeft, speedRight);
-  }
+  } else {
+    //Play Music
   }
   delay(100);
 }
@@ -480,7 +484,9 @@ void loop() {
   if (isBlackLine() == 1) {
     Serial.println("BLACK LINE!!!");
     //loopColorChallenge();
-    soundChallenge();
+    //soundChallenge();
+    //ultraSense();
+    play();
     delay(100);
   }
   inputLeft = analogRead(LEFT_IR);
