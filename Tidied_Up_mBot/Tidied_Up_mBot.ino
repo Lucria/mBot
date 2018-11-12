@@ -372,7 +372,7 @@ void colorChecker() {
   }
   // Black
   else if ((colourArray[0] < 30) && (colourArray[1] < 30) && (colourArray[2] < 30)) {
-    //CHECK FOR SOUND CHALLENGE
+    soundChallenge();
   }
 }
 
@@ -458,14 +458,16 @@ void soundChallenge() {
   Serial.print("       ");
   Serial.print(ratio);
   Serial.println("");
-  if ((ratio <= 0.3) && (ratio > 0)) {
-    turnLeft(speedLeft, speedRight);
-  } else if ((ratio > 0.3) && (ratio <= 2)) {
-    turnULeft(speedLeft, speedRight);
-  } else if (ratio > 2) {
-    turnRight(speedLeft, speedRight);
+  if (avghigh > 150) {
+    if ((ratio <= 0.3) && (ratio > 0)) {
+      turnLeft(speedLeft, speedRight);
+    } else if ((ratio > 0.3) && (ratio <= 2)) {
+      turnULeft(speedLeft, speedRight);
+    } else if (ratio > 2) {
+      turnRight(speedLeft, speedRight);
+    }
   } else {
-    //Play Music
+    play();
   }
   delay(100);
 }
