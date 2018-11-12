@@ -142,7 +142,7 @@ void play() {
  */
 
 //time for turn left or right
-#define TIME_TURN_MAX 275.0
+#define TIME_TURN_MAX 245.0
 #define SPEED_MAX 255.0
 #define DISTANCE_TWO_WHEELS 12.9
 #define DISTANCE_ONE_GRID 27.0
@@ -196,7 +196,7 @@ void turnRight(int speedLeft, int speedRight) {
 void turn180(int speedLeft, int speedRight) {
   for (int i = 0; i < 2; i++) {
     turnLeft(speedLeft, speedRight);
-    delay(100);
+    delay(120);
   }
   stop();
 }
@@ -207,7 +207,7 @@ void goOneGrid(int speedLeft, int speedRight) {
 }
 
 void turnULeft(int speedLeft, int speedRight) {
-  turnLeft(speedLeft, speedRight);
+  move(3, speedLeft, speedRight);
   delay(100);
   while (ultrasonicSensor.distanceCm() > ULTRADISTANCE) {
     move(1, speedLeft, speedRight);
@@ -219,7 +219,6 @@ void turnULeft(int speedLeft, int speedRight) {
 
 void turnURight(int speedLeft, int speedRight) {
   turnRight(speedLeft, speedRight);
-  delay(100);
   while (ultrasonicSensor.distanceCm() > ULTRADISTANCE) {
     move(1, speedLeft, speedRight);
   }
@@ -275,9 +274,9 @@ int isBlackLine() {
  */
 
 // Define time delay before the LED is ON
-#define LED_RGBWait 100
+#define LED_RGBWait 20
 // Define time delay before the next RGB colour turns ON to allow LDR to stabilize
-#define RGBWait 100
+#define RGBWait 20
 // Define time delay before taking another LDR reading
 #define LDRWait 10
 #define TIMES 20
@@ -343,36 +342,42 @@ void loopColorChallenge() {
     // multiplied by 255 will give a value between 0-255, representing the value for the current reflectivity 
     colourArray[c] = (colourArray[c] - blackArray[c]) / (greyDiff[c]) * 255;
     turnOffLed(0);
-    delay(LED_RGBWait);
+    delay(10);
     Serial.println(int(colourArray[c]));
-    colorChecker();
   }
+  colorChecker();
 }
 
 void colorChecker() {
   // Red
-  if ((colourArray[0] > 150) && (colourArray[1] < 80) && (colourArray[2] < 70)) {
+  if ((colourArray[0] > 180) && (colourArray[1] < 105) && (colourArray[2] < 100)) {
     turnLeft(speedLeft, speedRight);
+    return;
   }
   // Green
-  else if ((colourArray[0] < 80) && (colourArray[1] > 90) && (colourArray[2] < 100)) {
+  if ((colourArray[0] < 110) && (colourArray[1] > 130) && (colourArray[2] < 100)) {
     turnRight(speedLeft, speedRight);
+    return;
   }
   // Blue
-  else if ((colourArray[0] < 70) && (colourArray[1] < 130) && (colourArray[2] > 100)) {
+  if ((colourArray[0] < 120) && (colourArray[1] > 140) && (colourArray[2] > 160)) {
     turnURight(speedLeft, speedRight);
+    return;
   }
   // White
-  else if ((colourArray[0] > 200) && (colourArray[1] > 200) && (colourArray[2] > 200)) {
+  if ((colourArray[0] > 200) && (colourArray[1] > 200) && (colourArray[2] > 200)) {
     turn180(speedLeft, speedRight);
+    return;
   }
   // Optional Orange
-  else if ((colourArray[0] < 150) && (colourArray[1] < 105) && (colourArray[2] <90)) {
+  if ((colourArray[0] > 200) && (colourArray[1] > 110) && (colourArray[2] < 110)) {
     turnULeft(speedLeft, speedRight);
+    return;
   }
   // Black
-  else if ((colourArray[0] < 30) && (colourArray[1] < 30) && (colourArray[2] < 30)) {
+  if ((colourArray[0] < 70) && (colourArray[1] < 70) && (colourArray[2] < 70)) {
     soundChallenge();
+    return;
   }
 }
 
@@ -401,8 +406,8 @@ int getAvgReading(int times) {
 double setpointLeft, inputLeft, outputLeft;
 double setpointRight, inputRight, outputRight;
 
-PID leftPID(&inputLeft, &outputLeft, &setpointLeft, 0.8, 0.1, 0, DIRECT);
-PID rightPID(&inputRight, &outputRight, &setpointRight, 0.8, 0.1, 0, DIRECT);
+PID leftPID(&inputLeft, &outputLeft, &setpointLeft, 0.7, 0.1, 0, DIRECT);
+PID rightPID(&inputRight, &outputRight, &setpointRight, 0.7, 0.1, 0, DIRECT);
 
 void setupIRCalibrate() {
   // Calibrates the initial left and right distance of the mBot
@@ -423,6 +428,16 @@ void setupIRCalibrate() {
   rightPID.SetMode(AUTOMATIC);
 }
 
+void extremeIR() {
+  if (inputLeft < 300) {
+    move(1, 255, 180);
+    delay(100);
+  }
+  else if (inputRight < 300) {
+    move(1, 180, 255);
+    delay(100);
+  }
+}
 
 /**
  * For Sound Challenge
@@ -458,12 +473,12 @@ void soundChallenge() {
   Serial.print("       ");
   Serial.print(ratio);
   Serial.println("");
-  if (avghigh > 150) {
-    if ((ratio <= 0.3) && (ratio > 0)) {
+  if (ratio > 0.25) {
+    if (ratio <= 0.7){
       turnLeft(speedLeft, speedRight);
-    } else if ((ratio > 0.3) && (ratio <= 2)) {
-      turnULeft(speedLeft, speedRight);
-    } else if (ratio > 2) {
+    } else if ((ratio > 0.7) && (ratio < 1.9)) {
+      turn180(speedLeft, speedRight);
+    } else if (ratio >= 1.9) {
       turnRight(speedLeft, speedRight);
     }
   } else {
@@ -484,31 +499,40 @@ void setup() {
 }
 
 void loop() {
+
   if (isBlackLine() == 1) {
     Serial.println("BLACK LINE!!!");
-    //loopColorChallenge();
+    loopColorChallenge();
     //soundChallenge();
     //ultraSense();
-    turnURight(speedLeft, speedRight);
-    play();
+    //turnURight(speedLeft, speedRight);
+    //play();
     delay(100);
   }
   inputLeft = analogRead(LEFT_IR);
   inputRight = analogRead(RIGHT_IR);
-  leftPID.Compute();
-  rightPID.Compute();
-  //Serial.println(outputLeft);
-  //Serial.println(outputRight);
-  speedLeft = (outputLeft / 2.2) + 180;
-  speedRight = (outputRight / 2.2) + 180;
-  move(1, speedLeft, speedRight);
+  if ((inputLeft < 300) || (inputRight < 300)) {
+    extremeIR();
+  } else {
+    leftPID.Compute();
+    rightPID.Compute();
+    //Serial.println(outputLeft);
+    //Serial.println(outputRight);
+    speedLeft = (outputLeft / 2.2) + 190;
+    speedRight = (outputRight / 2.2) + 190;
+    move(1, speedLeft, speedRight);
+  }
+  
+  //setupIRCalibrate();
 }
 
 /**
- * Green: 75, 118, 71 (Right turn)
+ * Green: 100, 150, 95 (Right turn)
  * Red: 167, 67, 58 (Left turn)
- * Blue: 64, 115, 136 (Two successive right turns in two grids)
+ * Blue: 100, 166, 190 (Two successive right turns in two grids)
  * Black: 2 2 2 (Check for Ultrasonic/ Victory)
  * White: 244, 243, 235 (Uturn in one grid)
- * Orange: 101, 89, 71 (Two successive left turns in two grids)
+ * Orange: 228 (250), 122 (159), 96 (128) (Two successive left turns in two grids)
  */
+
+
