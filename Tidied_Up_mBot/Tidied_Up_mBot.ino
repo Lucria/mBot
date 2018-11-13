@@ -135,6 +135,55 @@ void play() {
 
 
 
+
+/**
+ * For IR Sensors
+ * Utilized for movement correction so that robot can stay in a straight line.
+ * Used together with PID functions
+ */ 
+
+#define LEFT_IR A2
+#define RIGHT_IR A3
+
+double setpointLeft, inputLeft, outputLeft;
+double setpointRight, inputRight, outputRight;
+
+PID leftPID(&inputLeft, &outputLeft, &setpointLeft, 0.5, 0.01, 0, DIRECT);
+PID rightPID(&inputRight, &outputRight, &setpointRight, 0.5, 0.01, 0, DIRECT);
+
+void setupIRCalibrate() {
+  // Calibrates the initial left and right distance of the mBot
+  for (int i = 0; i < 10; i++) {
+    inputRight = analogRead(RIGHT_IR);
+    inputLeft = analogRead(LEFT_IR);
+    setpointLeft += inputLeft;
+    setpointRight += inputRight;
+    delay(100);
+  }
+  setpointLeft /= 10;
+  setpointRight /= 10;
+  Serial.println(setpointLeft);
+  Serial.println(setpointRight);
+  
+  // turn PID on
+  leftPID.SetMode(AUTOMATIC);
+  rightPID.SetMode(AUTOMATIC);
+}
+
+void extremeIR() {
+  if (inputLeft < 300) {
+    move(1, 255, 165);
+    delay(100);
+  }
+  else if (inputRight < 300) {
+    move(1, 165, 255);
+    delay(100);
+  }
+}
+
+
+
+
 /**
  * Motor functions
  * Responsible for changing the MeDCMotor values
@@ -142,8 +191,8 @@ void play() {
  */
 
 //time for turn left or right
-#define TIME_TURN_MAX 245.0
-#define SPEED_MAX 255.0
+#define TIME_TURN_MAX 250.0
+#define SPEED_MAX 250.0
 #define DISTANCE_TWO_WHEELS 12.9
 #define DISTANCE_ONE_GRID 27.0
 #define TIME_ONE_GRID (DISTANCE_ONE_GRID/(DISTANCE_TWO_WHEELS * 3.1416/4)*TIME_TURN_MAX)
@@ -184,21 +233,30 @@ void move(int direction, int speedLeft, int speedRight) {
 void turnLeft(int speedLeft, int speedRight) {
   move(3, speedLeft, speedRight);
   delay(TIME_TURN_MAX * SPEED_MAX / (speedLeft / 2 + speedRight / 2));
+  move(1, speedLeft, speedRight);
+  delay(100);
   stop();
 }
 
 void turnRight(int speedLeft, int speedRight) {
   move(4, speedLeft, speedRight);
   delay(TIME_TURN_MAX * SPEED_MAX / (speedLeft / 2 + speedRight / 2));
+  move(1,speedLeft, speedRight);
+  delay(100);
   stop();
 }
 
 void turn180(int speedLeft, int speedRight) {
-  for (int i = 0; i < 2; i++) {
-    turnLeft(speedLeft, speedRight);
-    delay(120);
+  if (analogRead(LEFT_IR) > analogRead(RIGHT_IR)) {
+    move(3, speedLeft, speedRight);
+    delay( 2 * TIME_TURN_MAX * SPEED_MAX / (speedLeft / 2 + speedRight / 2));
+    stop();
   }
-  stop();
+  else {
+    move(4, speedLeft, speedRight);
+    delay( 2 * TIME_TURN_MAX * SPEED_MAX / (speedLeft / 2 + speedRight / 2));
+    stop();
+  }
 }
 
 void goOneGrid(int speedLeft, int speedRight) {
@@ -207,23 +265,26 @@ void goOneGrid(int speedLeft, int speedRight) {
 }
 
 void turnULeft(int speedLeft, int speedRight) {
-  move(3, speedLeft, speedRight);
-  delay(100);
+  turnLeft(speedLeft, speedRight);
+  delay(50);
   while (ultrasonicSensor.distanceCm() > ULTRADISTANCE) {
     move(1, speedLeft, speedRight);
   }
-  turnLeft(speedLeft, speedRight);
-  delay(100);
+  delay(50);
+  move(3, speedLeft, speedRight);
+  delay(50 + TIME_TURN_MAX * SPEED_MAX / (speedLeft / 2 + speedRight / 2));
   stop();
 }
 
 void turnURight(int speedLeft, int speedRight) {
   turnRight(speedLeft, speedRight);
+  delay(50);
   while (ultrasonicSensor.distanceCm() > ULTRADISTANCE) {
     move(1, speedLeft, speedRight);
   }
-  turnRight(speedLeft, speedRight);
-  delay(100);
+  delay(50);
+  move(4, speedLeft, speedRight);
+  delay(50 + TIME_TURN_MAX * SPEED_MAX / (speedLeft / 2 + speedRight / 2));
   stop();
 }
 
@@ -244,9 +305,9 @@ void stop() {
 MeLineFollower linefollower_2(PORT_2);
 
 int isBlackLine() {
-  if ((linefollower_2.readSensors() == S1_IN_S2_IN)
-    || linefollower_2.readSensors() == S1_IN_S2_OUT
-    || linefollower_2.readSensors() == S1_OUT_S2_IN) {
+  if ((linefollower_2.readSensors() == S1_IN_S2_IN) ) {
+//    || linefollower_2.readSensors() == S1_IN_S2_OUT
+//    || linefollower_2.readSensors() == S1_OUT_S2_IN) {
     stop();
     return 1;
   }
@@ -263,14 +324,13 @@ int isBlackLine() {
  * colorArray will be used to hold measurements of measured
  * color paper
  * 
- * Measured RGB values for each color paper
- * Requires conditional statements to decide which paper is what
- * Green: 75, 118, 71
- * Red: 167, 67, 58
- * Blue: 64, 115, 136
- * Orange: 101, 89, 71 (OPTIONAL)
- * Black: 2 2 2
- * White: 244, 243, 235
+ *
+ * Green: 50, 133, 50 (Right turn)
+ * Red: 208, 38, 30 (Left turn)
+ * Blue: 45, 130, 160 (Two successive right turns in two grids)
+ * Black: -5 -5 -5 (Check for Ultrasonic/ Victory)
+ * White: 275, 275, 280 (Uturn in one grid)
+ * Orange: 222, 63, 38 (Two successive left turns in two grids)
  */
 
 // Define time delay before the LED is ON
@@ -285,10 +345,71 @@ MeLightSensor lightsensorTOP(PORT_6);
 MeRGBLed rgbled(PORT_7, 2);
 
 float colourArray[] = {0, 0, 0};
-float whiteArray[] = {908.00, 733.00, 851.00};
-float blackArray[] = {271.00, 210.00, 247.00};
-float greyDiff[] = {629.00, 523.00, 604.00};
+float whiteArray[] = {479.00, 334.00, 432.00};
+float blackArray[] = {232.00, 160.00, 207.00};
+float greyDiff[] = {246.00, 174.00, 225.00};
 char colourStr[3][5] = {"R= ", "G= ", "B= "};
+
+void setup_Color_Challenge() {
+  //setup the outputs for the colour sensor
+  turnOffLed(0);
+  setBalance();  //calibration
+}
+
+void setBalance() {
+  //set white balance
+  Serial.println("Put White Sample For Calibration ...");
+
+  buzzer.tone(8, NOTE_G4, 250);
+
+  delay(5000);  //delay for five seconds for getting sample ready
+
+  turnOffLed(0); //Check Indicator OFF during Calibration
+
+  //scan the white sample.
+  //go through one colour at a time, set the maximum reading for each colour -- red, green and blue to the white array
+  for (int i = 0; i <= 2; i++) {
+    // Turn on LED Red, Green, Blue at a time
+    turnOnOffRGBLed(i, 0);
+
+    whiteArray[i] = getAvgReading(TIMES);         //scan 5 times and return the average, 
+
+    //turn off the current LED colour
+    turnOffLed(0);
+
+    delay(LED_RGBWait);
+  }
+
+  //done scanning white, time for the black sample.
+
+  //set black balance
+  Serial.println("Put Black Sample For Calibration ...");
+
+  buzzer.tone(8, NOTE_C5, 250);
+
+  delay(5000); //delay for five seconds for getting sample ready 
+
+  //go through one colour at a time, set the minimum reading for red, green and blue to the black array
+  for (int i = 0; i <= 2; i++) {
+    // Turn on LED Red, Green, Blue at a time
+    turnOnOffRGBLed(i, 0);
+
+    blackArray[i] = getAvgReading(TIMES);
+
+    //turn off the current LED colour
+    turnOffLed(0);
+
+    delay(LED_RGBWait);
+    //the differnce between the maximum and the minimum gives the range
+    greyDiff[i] = whiteArray[i] - blackArray[i];
+  }
+
+  //delay another 5 seconds for getting ready colour objects
+  Serial.println("Colour Sensor Is Ready.");
+  delay(1000);
+
+  buzzer.tone(8, NOTE_E5, 250);
+}
 
 void turnOnOffRGBLed(int i, int light) {
   if (i == 0) {
@@ -348,19 +469,28 @@ void loopColorChallenge() {
   colorChecker();
 }
 
+/**
+ * Green: 50, 133, 50 (Right turn)
+ * Red: 208, 38, 30 (Left turn)
+ * Blue: 45, 130, 160 (Two successive right turns in two grids)
+ * Black: -5 -5 -5 (Check for Ultrasonic/ Victory)
+ * White: 275, 275, 280 (Uturn in one grid)
+ * Orange: 222, 63, 38 (Two successive left turns in two grids)
+ */
+
 void colorChecker() {
   // Red
-  if ((colourArray[0] > 180) && (colourArray[1] < 105) && (colourArray[2] < 100)) {
+  if ((colourArray[0] > 180) && (colourArray[1] < 45) && (colourArray[2] < 60)) {
     turnLeft(speedLeft, speedRight);
     return;
   }
   // Green
-  if ((colourArray[0] < 110) && (colourArray[1] > 130) && (colourArray[2] < 100)) {
+  if ((colourArray[0] < 70) && (colourArray[1] > 100) && (colourArray[2] < 70)) {
     turnRight(speedLeft, speedRight);
     return;
   }
   // Blue
-  if ((colourArray[0] < 120) && (colourArray[1] > 140) && (colourArray[2] > 160)) {
+  if ((colourArray[0] < 70) && (colourArray[1] > 100) && (colourArray[2] > 130)) {
     turnURight(speedLeft, speedRight);
     return;
   }
@@ -370,12 +500,12 @@ void colorChecker() {
     return;
   }
   // Optional Orange
-  if ((colourArray[0] > 200) && (colourArray[1] > 110) && (colourArray[2] < 110)) {
+  if ((colourArray[0] > 200) && (colourArray[1] > 45) && (colourArray[2] < 60)) {
     turnULeft(speedLeft, speedRight);
     return;
   }
   // Black
-  if ((colourArray[0] < 70) && (colourArray[1] < 70) && (colourArray[2] < 70)) {
+  if ((colourArray[0] < 40) && (colourArray[1] < 40) && (colourArray[2] < 40)) {
     soundChallenge();
     return;
   }
@@ -394,50 +524,7 @@ int getAvgReading(int times) {
 }
 
 
-/**
- * For IR Sensors
- * Utilized for movement correction so that robot can stay in a straight line.
- * Used together with PID functions
- */ 
 
-#define LEFT_IR A2
-#define RIGHT_IR A3
-
-double setpointLeft, inputLeft, outputLeft;
-double setpointRight, inputRight, outputRight;
-
-PID leftPID(&inputLeft, &outputLeft, &setpointLeft, 0.7, 0.1, 0, DIRECT);
-PID rightPID(&inputRight, &outputRight, &setpointRight, 0.7, 0.1, 0, DIRECT);
-
-void setupIRCalibrate() {
-  // Calibrates the initial left and right distance of the mBot
-  for (int i = 0; i < 10; i++) {
-    inputRight = analogRead(RIGHT_IR);
-    inputLeft = analogRead(LEFT_IR);
-    setpointLeft += inputLeft;
-    setpointRight += inputRight;
-    delay(100);
-  }
-  setpointLeft /= 10;
-  setpointRight /= 10;
-  Serial.println(setpointLeft);
-  Serial.println(setpointRight);
-  
-  // turn PID on
-  leftPID.SetMode(AUTOMATIC);
-  rightPID.SetMode(AUTOMATIC);
-}
-
-void extremeIR() {
-  if (inputLeft < 300) {
-    move(1, 255, 180);
-    delay(100);
-  }
-  else if (inputRight < 300) {
-    move(1, 180, 255);
-    delay(100);
-  }
-}
 
 /**
  * For Sound Challenge
@@ -465,20 +552,20 @@ void soundChallenge() {
   }
   float avghigh = reading_high/20;
   float avglow = reading_low/20;
-  float ratio = avghigh/(avglow);
+  double ratio = avghigh/(avglow);
   Serial.print("300Hz:");
   Serial.print((avglow)/1023*5000);
   Serial.print("       3000Hz:");
   Serial.print(avghigh/1023*5000);
   Serial.print("       ");
-  Serial.print(ratio);
+  Serial.print(ratio,7);
   Serial.println("");
-  if (ratio > 0.25) {
-    if (ratio <= 0.7){
+  if (ratio > 0.001) {
+    if (ratio <= 0.9){
       turnLeft(speedLeft, speedRight);
-    } else if ((ratio > 0.7) && (ratio < 1.9)) {
+    } else if ((ratio > 0.9) && (ratio < 5)) {
       turn180(speedLeft, speedRight);
-    } else if (ratio >= 1.9) {
+    } else if (ratio >= 5) {
       turnRight(speedLeft, speedRight);
     }
   } else {
@@ -496,43 +583,42 @@ void setup() {
   Serial.begin(9600);
   setupIRCalibrate();
   Serial.println("IR CALIBRATION DONE");
+  //setup_Color_Challenge();
 }
 
 void loop() {
-
+  
   if (isBlackLine() == 1) {
     Serial.println("BLACK LINE!!!");
     loopColorChallenge();
     //soundChallenge();
     //ultraSense();
-    //turnURight(speedLeft, speedRight);
     //play();
     delay(100);
   }
   inputLeft = analogRead(LEFT_IR);
   inputRight = analogRead(RIGHT_IR);
-  if ((inputLeft < 300) || (inputRight < 300)) {
+  if ((inputLeft < 280) || (inputRight < 280)) {
     extremeIR();
   } else {
     leftPID.Compute();
     rightPID.Compute();
     //Serial.println(outputLeft);
     //Serial.println(outputRight);
-    speedLeft = (outputLeft / 2.2) + 190;
-    speedRight = (outputRight / 2.2) + 190;
+    speedLeft = -(outputRight * 2.2) + 250;
+    speedRight = -(outputLeft * 2.2) + 250;
     move(1, speedLeft, speedRight);
   }
-  
-  //setupIRCalibrate();
+
+  //soundChallenge();
 }
 
 /**
- * Green: 100, 150, 95 (Right turn)
- * Red: 167, 67, 58 (Left turn)
- * Blue: 100, 166, 190 (Two successive right turns in two grids)
- * Black: 2 2 2 (Check for Ultrasonic/ Victory)
- * White: 244, 243, 235 (Uturn in one grid)
- * Orange: 228 (250), 122 (159), 96 (128) (Two successive left turns in two grids)
+ * Green: 50, 133, 50 (Right turn)
+ * Red: 208, 38, 30 (Left turn)
+ * Blue: 45, 130, 160 (Two successive right turns in two grids)
+ * Black: -5 -5 -5 (Check for Ultrasonic/ Victory)
+ * White: 275, 275, 280 (Uturn in one grid)
+ * Orange: 222, 63, 38 (Two successive left turns in two grids)
  */
-
 
