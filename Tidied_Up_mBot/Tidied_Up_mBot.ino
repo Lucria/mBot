@@ -191,7 +191,7 @@ void extremeIR() {
  */
 
 //time for turn left or right
-#define TIME_TURN_MAX 250.0
+#define TIME_TURN_MAX 240.0
 #define SPEED_MAX 250.0
 #define DISTANCE_TWO_WHEELS 12.9
 #define DISTANCE_ONE_GRID 27.0
@@ -249,7 +249,7 @@ void turnRight(int speedLeft, int speedRight) {
 void turn180(int speedLeft, int speedRight) {
   if (analogRead(LEFT_IR) > analogRead(RIGHT_IR)) {
     move(3, speedLeft, speedRight);
-    delay( 2 * TIME_TURN_MAX * SPEED_MAX / (speedLeft / 2 + speedRight / 2));
+    delay(2 * TIME_TURN_MAX * SPEED_MAX / (speedLeft / 2 + speedRight / 2));
     stop();
   }
   else {
