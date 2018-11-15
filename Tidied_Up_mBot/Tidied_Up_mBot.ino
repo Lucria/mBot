@@ -234,7 +234,7 @@ void turnLeft(int speedLeft, int speedRight) {
   move(3, speedLeft, speedRight);
   delay(TIME_TURN_MAX * SPEED_MAX / (speedLeft / 2 + speedRight / 2));
   move(1, speedLeft, speedRight);
-  delay(100);
+  delay(200);
   stop();
 }
 
@@ -560,12 +560,12 @@ void soundChallenge() {
   Serial.print("       ");
   Serial.print(ratio,7);
   Serial.println("");
-  if (ratio > 0.001) {
-    if (ratio <= 0.9){
+  if (ratio > 1) {
+    if (ratio <= 5){
       turnLeft(speedLeft, speedRight);
-    } else if ((ratio > 0.9) && (ratio < 5)) {
+    } else if ((ratio > 1) && (ratio < 9)) {
       turn180(speedLeft, speedRight);
-    } else if (ratio >= 5) {
+    } else if (ratio >= 9) {
       turnRight(speedLeft, speedRight);
     }
   } else {
@@ -621,4 +621,3 @@ void loop() {
  * White: 275, 275, 280 (Uturn in one grid)
  * Orange: 222, 63, 38 (Two successive left turns in two grids)
  */
-
