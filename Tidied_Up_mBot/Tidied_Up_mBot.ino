@@ -1,32 +1,9 @@
 #include "MeMCore.h"
 #include <PID_v1.h>
 
-// Musical Notes
-#define NOTE_B0  31
-#define NOTE_C1  33
-#define NOTE_CS1 35
-#define NOTE_D1  37
-#define NOTE_DS1 39
-#define NOTE_E1  41
-#define NOTE_F1  44
-#define NOTE_FS1 46
-#define NOTE_G1  49
-#define NOTE_GS1 52
-#define NOTE_A1  55
-#define NOTE_AS1 58
-#define NOTE_B1  62
-#define NOTE_C2  65
-#define NOTE_CS2 69
-#define NOTE_D2  73
-#define NOTE_DS2 78
-#define NOTE_E2  82
-#define NOTE_F2  87
-#define NOTE_FS2 93
-#define NOTE_G2  98
-#define NOTE_GS2 104
-#define NOTE_A2  110
-#define NOTE_AS2 117
-#define NOTE_B2  123
+/**
+ * Musical notes definition based on values found online
+ */
 #define NOTE_C3  131
 #define NOTE_CS3 139
 #define NOTE_D3  147
@@ -40,57 +17,6 @@
 #define NOTE_AS3 233
 #define NOTE_B3  247
 #define NOTE_C4  262
-#define NOTE_CS4 277
-#define NOTE_D4  294
-#define NOTE_DS4 311
-#define NOTE_E4  330
-#define NOTE_F4  349
-#define NOTE_FS4 370
-#define NOTE_G4  392
-#define NOTE_GS4 415
-#define NOTE_A4  440
-#define NOTE_AS4 466
-#define NOTE_B4  494
-#define NOTE_C5  523
-#define NOTE_CS5 554
-#define NOTE_D5  587
-#define NOTE_DS5 622
-#define NOTE_E5  659
-#define NOTE_F5  698
-#define NOTE_FS5 740
-#define NOTE_G5  784
-#define NOTE_GS5 831
-#define NOTE_A5  880
-#define NOTE_AS5 932
-#define NOTE_B5  988
-#define NOTE_C6  1047
-#define NOTE_CS6 1109
-#define NOTE_D6  1175
-#define NOTE_DS6 1245
-#define NOTE_E6  1319
-#define NOTE_F6  1397
-#define NOTE_FS6 1480
-#define NOTE_G6  1568
-#define NOTE_GS6 1661
-#define NOTE_A6  1760
-#define NOTE_AS6 1865
-#define NOTE_B6  1976
-#define NOTE_C7  2093
-#define NOTE_CS7 2217
-#define NOTE_D7  2349
-#define NOTE_DS7 2489
-#define NOTE_E7  2637
-#define NOTE_F7  2794
-#define NOTE_FS7 2960
-#define NOTE_G7  3136
-#define NOTE_GS7 3322
-#define NOTE_A7  3520
-#define NOTE_AS7 3729
-#define NOTE_B7  3951
-#define NOTE_C8  4186
-#define NOTE_CS8 4435
-#define NOTE_D8  4699
-#define NOTE_DS8 4978
 
 /**
  * Ultrasonic Sensor definitions
@@ -98,6 +24,9 @@
  * successive left turns (orange) or two successive right turns (blue) in two
  * grids. After turning the first time, mBot will rely on the ultrasonic sensor
  * and detects if the wall is within a certain distance before turning again
+ * 
+ * We have defined the sensing distance ULTRADISTANCE to be 12cm
+ * Initialised the ultrasonic sensor under the variable ultrasonicSensor reading from PORT_1
  */
 #define ULTRADISTANCE 12
 
@@ -110,8 +39,15 @@ MeUltrasonicSensor ultrasonicSensor(PORT_1);
  * Store musical notes in an array based on defined numbers found online
  * Duration that each note is played is also stored in an array
  * Chosen song: Thug Life, Snoop Dog LOL
+ * 
+ * Initialise the on baord buzzer as variable buzzer
+ * melody[] is the array containing the notes of our victory tune
+ * noteDurations[] is the array holding the duration of each note
+ * noteDuration is defined as 1 second divided by the duration of that note.
+ * E.g. A quartet will be 1000/4
+ * Between each note there is a delay that we experimented to be *1.1 of the noteDuration
+ * for best effect
  */
- 
 MeBuzzer buzzer;
 
 int melody[] = {NOTE_DS3, NOTE_AS3, NOTE_AS3, NOTE_GS3, NOTE_AS3, NOTE_GS3, NOTE_FS3, NOTE_GS3, NOTE_GS3, NOTE_FS3, NOTE_DS3, NOTE_FS3};
@@ -119,13 +55,8 @@ int noteDurations[] = {4, 4, 8, 8, 4, 8, 8, 4, 8, 8, 8, 8};
 
 void play() {
   for (int thisNote = 0; thisNote < 12; thisNote++) {
-    // Note duration = one second (1000) / note type
-    //e.g. quarter note = 1000 / 4, eighth note = 1000/8, etc.
     int noteDuration = 1000 / noteDurations[thisNote];
-
     buzzer.tone(8, melody[thisNote], noteDuration);
-
-    // Note delay between each note to distinguish each note
     int pauseBetweenNotes = noteDuration * 1.10;
     delay(pauseBetweenNotes);
     // End of music
@@ -137,22 +68,45 @@ void play() {
 
 
 /**
- * For IR Sensors
+ * Functions related to movement corrections
  * Utilized for movement correction so that robot can stay in a straight line.
- * Used together with PID functions
+ * Utilizes PID for minor motion adjustments.
+ * However, should IR sensor detect the wall to be too near (<300)
+ * we will utilize another function called extremeIR to correct our movement back
+ * within safe regions
  */ 
 
 #define LEFT_IR A2
 #define RIGHT_IR A3
 
+/**
+ * Definitions for the PID function to work
+ * setpointLeft and setpointRight is the initial values sensed by the 
+ * left and right IR sensor respectively
+ */
 double setpointLeft, inputLeft, outputLeft;
 double setpointRight, inputRight, outputRight;
 
+// Values for Proportional, Integral and Derivative were found via trial and error
+// P = 0.5 accounts for present errors
+// I = 0.01 accounts for past errors
+// D = 0 accounts for future errors
 PID leftPID(&inputLeft, &outputLeft, &setpointLeft, 0.5, 0.01, 0, DIRECT);
 PID rightPID(&inputRight, &outputRight, &setpointRight, 0.5, 0.01, 0, DIRECT);
 
+/**
+ * setupIRCalibrate function
+ * Used to calibrate the initial left and right distance of the mBot
+ * Takes 10 readings from left and right before calculating average
+ * Average value will be setpointLeft and setpointRight
+ * Upon calibration, PID function is set to AUTOMATIC
+ * 
+ * @param[in] inputLeft is the readings from the left IR sensor
+ * @param[in] inputRight is the readings from the right IR sensor
+ * @param[out] setpointLeft is the calibrated base point of the left IR sensor (to use with PID)
+ * @param[out] setpointRight is the calibrated base point of the right IR sensor (to use with PID)
+ */
 void setupIRCalibrate() {
-  // Calibrates the initial left and right distance of the mBot
   for (int i = 0; i < 10; i++) {
     inputRight = analogRead(RIGHT_IR);
     inputLeft = analogRead(LEFT_IR);
@@ -164,12 +118,19 @@ void setupIRCalibrate() {
   setpointRight /= 10;
   Serial.println(setpointLeft);
   Serial.println(setpointRight);
-  
   // turn PID on
   leftPID.SetMode(AUTOMATIC);
   rightPID.SetMode(AUTOMATIC);
 }
 
+/**
+ * extremeIR function
+ * Should readings from the left or right sensor be too low, mBot will 
+ * manually move towards the right or left to avoid the wall
+ * 
+ * @param[in] inputLeft is the readings from the left IR sensor
+ * @param[in] inputRight is the readings from the right IR sensor
+ */
 void extremeIR() {
   if (inputLeft < 300) {
     move(1, 255, 165);
@@ -186,23 +147,31 @@ void extremeIR() {
 
 /**
  * Motor functions
- * Responsible for changing the MeDCMotor values
+ * Responsible for changing the MeDCMotor values for movement
  * Functions defined under here are used for any form of movement that is determined by the color challenge or the sound challenge
  */
 
 //time for turn left or right
 #define TIME_TURN_MAX 240.0
 #define SPEED_MAX 250.0
-#define DISTANCE_TWO_WHEELS 12.9
-#define DISTANCE_ONE_GRID 27.0
-#define TIME_ONE_GRID (DISTANCE_ONE_GRID/(DISTANCE_TWO_WHEELS * 3.1416/4)*TIME_TURN_MAX)
 
 int speedLeft = SPEED_MAX;
 int speedRight = SPEED_MAX;
 MeDCMotor motor1(M1);
 MeDCMotor motor2(M2);
 
-
+/**
+ * move function
+ * We designed this function as we realised that in order to move forward or backward
+ * the values for the left and right motor have to be inversed. Eg. Left is positive 
+ * and right is negative or vice versa.
+ * As such, utilizing an if else statement at the end, we are able to avoid confusing ourselves
+ * when we wish our mBot to move in a certain direction
+ * 
+ * @param[in] direction is an indication of the direction in which we desire the mBot to movement
+ * @param[in] speedLeft is the speed at which the left motor turns. Usually determined via PID
+ * @param[in] speedRight is the speed at which the right motor turns. Usually determined via PID
+ */
 void move(int direction, int speedLeft, int speedRight) {
   int leftSpeed = 0;
   int rightSpeed = 0;
@@ -257,11 +226,6 @@ void turn180(int speedLeft, int speedRight) {
     delay( 2 * TIME_TURN_MAX * SPEED_MAX / (speedLeft / 2 + speedRight / 2));
     stop();
   }
-}
-
-void goOneGrid(int speedLeft, int speedRight) {
-  move(1, speedLeft, speedRight);
-  delay(TIME_ONE_GRID * SPEED_MAX / (speedLeft / 2 + speedRight / 2));
 }
 
 void turnULeft(int speedLeft, int speedRight) {
