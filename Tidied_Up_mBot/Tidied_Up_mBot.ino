@@ -167,6 +167,8 @@ MeDCMotor motor2(M2);
  * and right is negative or vice versa.
  * As such, utilizing an if else statement at the end, we are able to avoid confusing ourselves
  * when we wish our mBot to move in a certain direction
+ * We crunched some numbers and decided to change the delay of each turn according to
+ * a constant and the maximum speed of our mBot.
  * 
  * @param[in] direction is an indication of the direction in which we desire the mBot to movement
  * @param[in] speedLeft is the speed at which the left motor turns. Usually determined via PID
@@ -262,16 +264,17 @@ void stop() {
 /**
  * Black Line Sensing
  * Sensor is attached to PORT_2 of the mBot expansion
- * Sensors if there is a black line
+ * Senses if there is a black line
  * Black line is an indication of a challenge, sound or colour
+ * We set it such that only when both sensor are inside a black line then
+ * the mBot will stop.
+ * 
+ * @param[out] returns 1 if black line is sensed. Else it will return 0
  */
-
 MeLineFollower linefollower_2(PORT_2);
 
 int isBlackLine() {
   if ((linefollower_2.readSensors() == S1_IN_S2_IN) ) {
-//    || linefollower_2.readSensors() == S1_IN_S2_OUT
-//    || linefollower_2.readSensors() == S1_OUT_S2_IN) {
     stop();
     return 1;
   }
@@ -315,63 +318,36 @@ float greyDiff[] = {246.00, 174.00, 225.00};
 char colourStr[3][5] = {"R= ", "G= ", "B= "};
 
 void setup_Color_Challenge() {
-  //setup the outputs for the colour sensor
   turnOffLed(0);
-  setBalance();  //calibration
+  setBalance();
 }
 
 void setBalance() {
-  //set white balance
+  // Calibrates for whiteArray
   Serial.println("Put White Sample For Calibration ...");
-
   buzzer.tone(8, NOTE_G4, 250);
-
-  delay(5000);  //delay for five seconds for getting sample ready
-
-  turnOffLed(0); //Check Indicator OFF during Calibration
-
-  //scan the white sample.
-  //go through one colour at a time, set the maximum reading for each colour -- red, green and blue to the white array
+  delay(5000);  // Delay 5 seconds to get white sample ready
+  turnOffLed(0);
   for (int i = 0; i <= 2; i++) {
     // Turn on LED Red, Green, Blue at a time
     turnOnOffRGBLed(i, 0);
-
-    whiteArray[i] = getAvgReading(TIMES);         //scan 5 times and return the average, 
-
-    //turn off the current LED colour
+    whiteArray[i] = getAvgReading(TIMES); //Calibrates whiteArray based on average reading
     turnOffLed(0);
-
     delay(LED_RGBWait);
   }
-
-  //done scanning white, time for the black sample.
-
-  //set black balance
   Serial.println("Put Black Sample For Calibration ...");
-
   buzzer.tone(8, NOTE_C5, 250);
-
-  delay(5000); //delay for five seconds for getting sample ready 
-
-  //go through one colour at a time, set the minimum reading for red, green and blue to the black array
+  delay(5000); // Delay 5 seconds to get black sample ready
   for (int i = 0; i <= 2; i++) {
     // Turn on LED Red, Green, Blue at a time
     turnOnOffRGBLed(i, 0);
-
-    blackArray[i] = getAvgReading(TIMES);
-
-    //turn off the current LED colour
+    blackArray[i] = getAvgReading(TIMES); // Calibrates blackArray based on average reading
     turnOffLed(0);
-
     delay(LED_RGBWait);
-    //the differnce between the maximum and the minimum gives the range
+    // greDiff is the difference between the maximum possible and the minimum possible values
     greyDiff[i] = whiteArray[i] - blackArray[i];
   }
-
-  //delay another 5 seconds for getting ready colour objects
   Serial.println("Colour Sensor Is Ready.");
-  delay(1000);
-
   buzzer.tone(8, NOTE_E5, 250);
 }
 
@@ -422,7 +398,6 @@ void loopColorChallenge() {
     Serial.print(colourStr[c]);
     turnOnOffRGBLed(c, 0); 
     colourArray[c] = getAvgReading(TIMES);
-
     // the average reading returned minus the lowest value divided by the maximum possible range,
     // multiplied by 255 will give a value between 0-255, representing the value for the current reflectivity 
     colourArray[c] = (colourArray[c] - blackArray[c]) / (greyDiff[c]) * 255;
@@ -475,6 +450,7 @@ void colorChecker() {
   }
 }
 
+// This fucntion is used to get the average reading
 int getAvgReading(int times) {
   int reading;
   int total = 0;
@@ -483,7 +459,6 @@ int getAvgReading(int times) {
     total = reading + total;
     delay(LED_RGBWait);
   }
-  //calculate the average and return it
   return total / times;
 }
 
@@ -514,8 +489,8 @@ void soundChallenge() {
     reading_high += analogRead(Reader3000Hz);
     delay(50);
   }
-  float avghigh = reading_high/20;
-  float avglow = reading_low/20;
+  float avghigh = reading_high/20; //Gets average reading for 3000Hz
+  float avglow = reading_low/20; //Gets average reading for 300Hz
   double ratio = avghigh/(avglow);
   Serial.print("300Hz:");
   Serial.print((avglow)/1023*5000);
@@ -524,6 +499,7 @@ void soundChallenge() {
   Serial.print("       ");
   Serial.print(ratio,7);
   Serial.println("");
+  // Numbers are determined through trial and error
   if (ratio > 1) {
     if (ratio <= 5){
       turnLeft(speedLeft, speedRight);
@@ -542,7 +518,6 @@ void soundChallenge() {
 /**
  * Main Methods
  */
-
 void setup() {
   Serial.begin(9600);
   setupIRCalibrate();
@@ -550,14 +525,17 @@ void setup() {
   //setup_Color_Challenge();
 }
 
+/**
+ * Checks for black line
+ * If no black line, continue moving forward. and correct itself using PID functions
+ * If black line, checks for colour first
+ * If colour is black, checks for sound.
+ * If no sound, play victory music. Else, follow accordingly to certian sound or colour
+ */
 void loop() {
-  
   if (isBlackLine() == 1) {
     Serial.println("BLACK LINE!!!");
     loopColorChallenge();
-    //soundChallenge();
-    //ultraSense();
-    //play();
     delay(100);
   }
   inputLeft = analogRead(LEFT_IR);
@@ -567,21 +545,8 @@ void loop() {
   } else {
     leftPID.Compute();
     rightPID.Compute();
-    //Serial.println(outputLeft);
-    //Serial.println(outputRight);
     speedLeft = -(outputRight * 2.2) + 250;
     speedRight = -(outputLeft * 2.2) + 250;
     move(1, speedLeft, speedRight);
   }
-
-  //soundChallenge();
 }
-
-/**
- * Green: 50, 133, 50 (Right turn)
- * Red: 208, 38, 30 (Left turn)
- * Blue: 45, 130, 160 (Two successive right turns in two grids)
- * Black: -5 -5 -5 (Check for Ultrasonic/ Victory)
- * White: 275, 275, 280 (Uturn in one grid)
- * Orange: 222, 63, 38 (Two successive left turns in two grids)
- */
