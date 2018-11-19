@@ -492,18 +492,11 @@ void soundChallenge() {
   float avghigh = reading_high/20; //Gets average reading for 3000Hz
   float avglow = reading_low/20; //Gets average reading for 300Hz
   double ratio = avghigh/(avglow);
-  Serial.print("300Hz:");
-  Serial.print((avglow)/1023*5000);
-  Serial.print("       3000Hz:");
-  Serial.print(avghigh/1023*5000);
-  Serial.print("       ");
-  Serial.print(ratio,7);
-  Serial.println("");
   // Numbers are determined through trial and error
   if (ratio > 1) {
     if (ratio <= 5){
       turnLeft(speedLeft, speedRight);
-    } else if ((ratio > 1) && (ratio < 9)) {
+    } else if ((ratio > 5) && (ratio < 9)) {
       turn180(speedLeft, speedRight);
     } else if (ratio >= 9) {
       turnRight(speedLeft, speedRight);
@@ -545,8 +538,8 @@ void loop() {
   } else {
     leftPID.Compute();
     rightPID.Compute();
-    speedLeft = -(outputRight * 2.2) + 250;
-    speedRight = -(outputLeft * 2.2) + 250;
+    speedLeft = -(outputRight * 2.2) + 250; //Base speed of 250, decreased by PID to go in straight line
+    speedRight = -(outputLeft * 2.2) + 250; //Base speed of 250, decreased by PID to go in straight line
     move(1, speedLeft, speedRight);
   }
 }
